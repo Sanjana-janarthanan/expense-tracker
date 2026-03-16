@@ -1,8 +1,7 @@
 let expenses = [];
-let editIndex = null;
 let chart;
 let trendChart;
-
+let editId = null;
 
 window.addEventListener("DOMContentLoaded", function () {
 
@@ -13,39 +12,55 @@ window.addEventListener("DOMContentLoaded", function () {
     document.getElementById("search").addEventListener("input", updateUI);
     document.getElementById("monthFilter").addEventListener("change", updateUI);
 
-
-   
-
-    const filterDropdown = document.getElementById("filter");
-
-    filterDropdown.innerHTML = '<option value="all">All</option>';
-
-    let categories = [...new Set(expenses.map(exp => exp.category))];
-
-    categories.forEach(cat => {
-        let option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        filterDropdown.appendChild(option);
+    document.getElementById("themeToggle").addEventListener("click", function () {
+        document.body.classList.toggle("dark-mode");
     });
-
-        const monthDropdown = document.getElementById("monthFilter");
-
-    let months = [...new Set(expenses.map(exp => exp.date.slice(0,7)))];
-
-    months.forEach(month => {
-        let option = document.createElement("option");
-        option.value = month;
-        option.textContent = month;
-        monthDropdown.appendChild(option);
-    });
-
-    updateUI();
-    fetchExpenses();
 
 });
 
 
+
+/* ================================
+   LOAD EXPENSES FROM BACKEND
+================================ */
+
+async function loadExpenses() {
+
+    const response = await fetch("https://expense-tracker-ibg3.onrender.com/expenses");
+
+    const data = await response.json();
+
+    expenses = data;   // backend returns array
+
+    populateFilters();
+
+    updateUI();
+}
+
+
+
+/* ================================
+   FETCH EXPENSES (REFRESH)
+================================ */
+
+async function fetchExpenses() {
+
+    const response = await fetch("https://expense-tracker-ibg3.onrender.com/expenses");
+
+    const result = await response.json();
+
+    expenses = result;
+
+    populateFilters();
+
+    updateUI();
+}
+
+
+
+/* ================================
+   ADD OR UPDATE EXPENSE
+================================ */
 
 async function addExpense() {
 
@@ -66,11 +81,9 @@ async function addExpense() {
 
     if (editId) {
 
-        await fetch(`http://localhost:5000/expenses/${editId}`, {
+        await fetch(`https://expense-tracker-ibg3.onrender.com/expenses/${editId}`, {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(expenseData)
         });
 
@@ -78,11 +91,9 @@ async function addExpense() {
 
     } else {
 
-        await fetch("http://localhost:5000/expenses", {
+        await fetch("https://expense-tracker-ibg3.onrender.com/expenses", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(expenseData)
         });
 
@@ -97,49 +108,121 @@ async function addExpense() {
 
 
 
+/* ================================
+   DELETE EXPENSE
+================================ */
+
+async function deleteExpense(id) {
+
+    await fetch(`https://expense-tracker-ibg3.onrender.com/expenses/${id}`, {
+        method: "DELETE"
+    });
+
+    fetchExpenses();
+}
+
+
+
+/* ================================
+   EDIT EXPENSE
+================================ */
+
+function editExpense(id) {
+
+    const expense = expenses.find(exp => exp._id === id);
+
+    document.getElementById("amount").value = expense.amount;
+    document.getElementById("category").value = expense.category;
+    document.getElementById("date").value = expense.date;
+
+    editId = id;
+}
+
+
+
+/* ================================
+   POPULATE FILTER DROPDOWNS
+================================ */
+
+function populateFilters() {
+
+    const filterDropdown = document.getElementById("filter");
+    const monthDropdown = document.getElementById("monthFilter");
+
+    filterDropdown.innerHTML = '<option value="all">All</option>';
+    monthDropdown.innerHTML = '<option value="">All Months</option>';
+
+    let categories = [...new Set(expenses.map(exp => exp.category))];
+
+    categories.forEach(cat => {
+
+        let option = document.createElement("option");
+
+        option.value = cat;
+        option.textContent = cat;
+
+        filterDropdown.appendChild(option);
+    });
+
+    let months = [...new Set(expenses.map(exp => exp.date.slice(0,7)))];
+
+    months.forEach(month => {
+
+        let option = document.createElement("option");
+
+        option.value = month;
+        option.textContent = month;
+
+        monthDropdown.appendChild(option);
+    });
+
+}
+
+
+
+/* ================================
+   UPDATE UI
+================================ */
+
 function updateUI() {
 
     let expenseList = document.getElementById("expenseList");
     let totalDisplay = document.getElementById("total");
-    let filterDropdown = document.getElementById("filter");
 
-    let selectedFilter = filterDropdown.value;
+    let selectedFilter = document.getElementById("filter").value;
     let searchValue = document.getElementById("search").value.toLowerCase();
     let sortValue = document.getElementById("sort").value;
-
-    let monthTotal = 0;
-    let currentMonth = new Date().toISOString().slice(0, 7);
     let selectedMonth = document.getElementById("monthFilter").value;
-
-
 
     expenseList.innerHTML = "";
 
-    if (expenses.length === 0) {
+    if (!expenses || expenses.length === 0) {
+
         expenseList.innerHTML = "<p>No expenses added yet.</p>";
-        totalDisplay.textContent = "0";
+        totalDisplay.textContent = "₹0";
+
         renderChart([]);
         return;
     }
 
     let filteredExpenses = expenses
-        .map((exp, index) => ({ ...exp, originalIndex: index }))
         .filter(exp =>
             (selectedFilter === "all" || exp.category === selectedFilter) &&
             (
-                exp.category.toLowerCase().includes(searchValue) ||
+                exp.category.includes(searchValue) ||
                 exp.amount.toString().includes(searchValue) ||
                 exp.date.includes(searchValue)
             )
         );
 
-        let emptyMessage = document.getElementById("emptyMessage");
-        
-        if (filteredExpenses.length === 0) {
-            emptyMessage.style.display = "block";
-        } else {
-            emptyMessage.style.display = "none";
-        }
+
+
+    if (selectedMonth !== "") {
+
+        filteredExpenses = filteredExpenses.filter(exp =>
+            exp.date.startsWith(selectedMonth)
+        );
+    }
 
 
 
@@ -155,16 +238,14 @@ function updateUI() {
         filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
     }
 
+
+
     let total = 0;
+    let monthTotal = 0;
 
     filteredExpenses.forEach(exp => {
 
         total += exp.amount;
-        if (selectedMonth === "" || exp.date.startsWith(selectedMonth)) {
-            monthTotal += exp.amount;
-        }
-
-
 
         let li = document.createElement("li");
 
@@ -184,58 +265,58 @@ function updateUI() {
         expenseList.appendChild(li);
     });
 
-    let monthTotalDisplay = document.getElementById("monthTotal");
-    if (monthTotalDisplay) {
-        monthTotalDisplay.textContent = monthTotal;
-    }
+
+
+    filteredExpenses.forEach(exp => {
+
+        if (selectedMonth === "" || exp.date.startsWith(selectedMonth)) {
+            monthTotal += exp.amount;
+        }
+
+    });
+
+
+
+    document.getElementById("monthTotal").textContent = monthTotal;
 
     totalDisplay.textContent = "₹" + total;
 
+
+
     let budgetLimit = 30000;
+
     let warning = document.getElementById("budgetWarning");
+
     if (monthTotal > budgetLimit) {
+
         warning.textContent = "⚠ Budget exceeded!";
         warning.style.color = "red";
+
     } else {
+
         warning.textContent = "";
+
     }
 
+
+
     renderChart(filteredExpenses);
+
     renderTrendChart();
 
 }
 
-async function deleteExpense(id) {
-
-    await fetch(`http://localhost:5000/expenses/${id}`, {
-        method: "DELETE"
-    });
-
-    fetchExpenses();
-}
 
 
-
-function editExpense(id) {
-
-    const expense = expenses.find(exp => exp._id === id);
-
-    document.getElementById("amount").value = expense.amount;
-    document.getElementById("category").value = expense.category;
-    document.getElementById("date").value = expense.date;
-
-    editId = id;
-}
-
-
+/* ================================
+   PIE CHART
+================================ */
 
 function renderChart(dataSource) {
 
     if (dataSource.length === 0) {
 
-        if (chart) {
-            chart.destroy();
-        }
+        if (chart) chart.destroy();
 
         return;
     }
@@ -256,18 +337,17 @@ function renderChart(dataSource) {
 
     const ctx = document.getElementById("expenseChart").getContext("2d");
 
-    if (chart) {
-        chart.destroy();
-    }
+    if (chart) chart.destroy();
 
     chart = new Chart(ctx, {
+
         type: "pie",
+
         data: {
             labels: labels,
-            datasets: [{
-                data: data
-            }]
+            datasets: [{ data: data }]
         },
+
         options: {
             plugins: {
                 title: {
@@ -276,19 +356,27 @@ function renderChart(dataSource) {
                 }
             }
         }
+
     });
+
 }
+
+
+
+/* ================================
+   TREND CHART
+================================ */
 
 function renderTrendChart() {
 
     const canvas = document.getElementById("trendChart");
+
     if (!canvas) return;
 
     let monthlyTotals = {};
 
     expenses.forEach(exp => {
 
-        
         let month = exp.date.slice(0, 7);
 
         if (!monthlyTotals[month]) {
@@ -296,20 +384,21 @@ function renderTrendChart() {
         }
 
         monthlyTotals[month] += exp.amount;
+
     });
 
     let months = Object.keys(monthlyTotals).sort();
+
     let totals = months.map(m => monthlyTotals[m]);
 
     const ctx = canvas.getContext("2d");
 
-    if (trendChart) {
-        trendChart.destroy();
-    }
-
+    if (trendChart) trendChart.destroy();
 
     trendChart = new Chart(ctx, {
+
         type: "line",
+
         data: {
             labels: months,
             datasets: [{
@@ -320,6 +409,7 @@ function renderTrendChart() {
                 fill: false
             }]
         },
+
         options: {
             plugins: {
                 title: {
@@ -328,10 +418,16 @@ function renderTrendChart() {
                 }
             }
         }
+
     });
+
 }
 
 
+
+/* ================================
+   EXPORT CSV
+================================ */
 
 function exportCSV() {
 
@@ -349,74 +445,10 @@ function exportCSV() {
     let blob = new Blob([csv], { type: "text/csv" });
 
     let link = document.createElement("a");
+
     link.href = URL.createObjectURL(blob);
+
     link.download = "expenses.csv";
 
     link.click();
-}
-
-document.getElementById("themeToggle").addEventListener("click", function () {
-
-    document.body.classList.toggle("dark-mode");
-
-});
-
-
-fetch("http://localhost:5000/expenses")
-.then(response => response.json())
-.then(data => {
-    console.log("Expenses from backend:", data);
-});
-
-
-async function loadExpenses() {
-
-    const response = await fetch("http://localhost:5000/expenses");
-    const data = await response.json();
-
-    expenses = data.data;
-
-    populateFilters(); 
-    updateUI();
-}
-
-
-function populateFilters() {
-
-    const filterDropdown = document.getElementById("filter");
-    const monthDropdown = document.getElementById("monthFilter");
-
-    filterDropdown.innerHTML = '<option value="all">All</option>';
-    monthDropdown.innerHTML = '<option value="">All Months</option>';
-
-    let categories = [...new Set(expenses.map(exp => exp.category))];
-
-    categories.forEach(cat => {
-        let option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        filterDropdown.appendChild(option);
-    });
-
-    let months = [...new Set(expenses.map(exp => exp.date.slice(0,7)))];
-
-    months.forEach(month => {
-        let option = document.createElement("option");
-        option.value = month;
-        option.textContent = month;
-        monthDropdown.appendChild(option);
-    });
-
-}
-
-
-async function fetchExpenses() {
-
-    const response = await fetch("http://localhost:5000/expenses");
-
-    const result = await response.json();
-
-    expenses = result.data;
-
-    updateUI();
 }
