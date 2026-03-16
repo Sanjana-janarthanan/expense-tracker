@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" href="favicon.ico">
+
+
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <h1>Expense Tracker</h1>
+            <button id="themeToggle">🌙</button>
+        </div>
+
+
+        <div class="card">
+            
+
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search" placeholder="Search by category...">
+            </div>
+
+
+            <div class="form">
+                <input type="number" id="amount" placeholder="Enter amount">
+                <input type="text" id="category" placeholder="Enter category">
+                <input type="date" id="date">
+                <button onclick="addExpense()">Add Expense</button>
+            </div>
+
+            <div class="controls">
+                <select id="filter">
+                    <option value="all">All</option>
+                    <option value="food">Food</option>
+                    <option value="travel">Travel</option>
+                    <option value="shopping">Shopping</option>
+                </select>
+
+                <select id="sort">
+                    <option value="none">Sort By</option>
+                    <option value="amountLow">Amount (Low → High)</option>
+                    <option value="amountHigh">Amount (High → Low)</option>
+                    <option value="dateRecent">Date (Recent First)</option>
+                </select>
+
+                <select id="monthFilter">
+                    <option value="">All Months</option>
+                </select>
+            </div>
+
+            <div class="total-section">
+                <h2>Total: <span id="total">0</span></h2>
+            </div>
+
+            <div class="month-total">
+                <h3>This Month: ₹<span id="monthTotal">0</span></h3>
+            </div>
+
+            <div class="budget-section">
+                <h3>Budget: ₹30000</h3>
+                <p id="budgetWarning"></p>
+            </div>
+
+            <div class="chart-section">
+                <h3>Expense Breakdown</h3>
+                <canvas id="expenseChart"></canvas>
+            </div>
+
+            <h3>Monthly Spending Trend</h3>
+            <canvas id="trendChart"></canvas>
+
+            
+            
+            <button onclick="exportCSV()">Export Expenses</button>
+
+
+            <ul id="expenseList"></ul>
+
+            <p id="emptyMessage" style="display:none;">
+                No expenses yet. Start tracking your spending!
+            </p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
